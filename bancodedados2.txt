@@ -1,0 +1,20 @@
+
+-- Seleciona todos os médicos da tabela médicos 
+SELECT *
+FROM medicos
+WHERE idade > 30
+	OR especialidade =  'pediatria';
+    
+SELECT COUNT(*)
+FROM medicos;
+
+SELECT idade
+FROM medicos;
+
+SELECT idade 
+FROM medicos
+ORDER BY idade desc;
+
+
+
+    
