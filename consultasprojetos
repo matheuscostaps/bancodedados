@@ -1,0 +1,132 @@
+ -- 1. Contar tarefas por prioridade em cada projeto
+Liste o nome de cada projeto. Para cada projeto, conte quantas tarefas existem para cada nível de `prioridade` ('Baixa', 'Normal', 'Alta', 'Urgente').
+O resultado deve mostrar o nome do projeto e colunas separadas para a contagem de cada prioridade. Projetos sem tarefas de uma certa prioridade devem mostrar 0
+
+SELECT
+    p.nome AS "Nome do Projeto",  -- Mostra o nome do projeto
+    SUM(CASE WHEN t.prioridade = 'Baixa' THEN 1 ELSE 0 END) AS "Baixa",  -- Conta quantas tarefas de prioridade 'Baixa' tem por projeto
+    SUM(CASE WHEN t.prioridade = 'Normal' THEN 1 ELSE 0 END) AS "Normal", -- Conta as de prioridade 'Normal'
+    SUM(CASE WHEN t.prioridade = 'Alta' THEN 1 ELSE 0 END) AS "Alta",     -- Conta as de prioridade 'Alta'
+    SUM(CASE WHEN t.prioridade = 'Urgente' THEN 1 ELSE 0 END) AS "Urgente" -- Conta as de prioridade 'Urgente'
+FROM
+    Projetos p  -- Tabela principal
+LEFT JOIN
+    Tarefas t ON p.id = t.id_projeto  -- Junta com Tarefas, mesmo que não existam tarefas (LEFT JOIN garante que todos os projetos apareçam)
+GROUP BY
+    p.nome  -- Agrupa os resultados por projeto
+ORDER BY
+    p.nome;  -- Ordena alfabeticamente pelo nome do projeto
+
+-- 2. Mostre o nome dos responsáveis 
+-- e a quantidade de tarefas pelas quais eles são responsáveis (id_responsavel_tarefa).
+-- Liste apenas os responsáveis que têm 3 ou mais tarefas atribuídas. Ordene do mais atarefado para o menos atarefado.
+
+SELECT
+    r.nome AS "Nome do Responsável",  -- Nome do responsável
+    COUNT(t.id) AS "Quantidade de Tarefas"  -- Conta quantas tarefas ele tem
+FROM
+    Responsaveis r
+JOIN
+    Tarefas t ON r.id = t.id_responsavel_tarefa  -- Junta com tarefas que ele está responsável
+GROUP BY
+    r.nome  -- Agrupa por nome para contar as tarefas de cada um
+HAVING
+    COUNT(t.id) >= 3  -- Filtra apenas os que têm 3 ou mais tarefas
+ORDER BY
+    "Quantidade de Tarefas" DESC;  -- Ordena do mais atarefado para o menos
+
+🔹 3. Calcule a "duração percebida" média das tarefas (em dias) para projetos,
+agrupados pelo status do projeto ('Pendente', 'Em Andamento', 'Concluído', 'Cancelado'). 
+Para este exercício, considere a "duração percebida" de uma tarefa como a diferença em dias entre a data_prevista_entrega da tarefa
+e a data_inicio do projeto ao qual ela pertence. Exiba o status do projeto e a respectiva duração percebida média das tarefas. 
+Arredonde a média para duas casas decimais. Ignore tarefas ou projetos onde as datas necessárias sejam nulas. Duração percebida média por status do projeto
+
+SELECT
+    p.status AS "Status do Projeto",  -- Mostra o status do projeto
+    ROUND(AVG(JULIANDAY(t.data_prevista_entrega) - JULIANDAY(p.data_inicio)), 2) AS "Duração Percebida Média (dias)"
+    -- Calcula a média da diferença entre a data de entrega da tarefa e o início do projeto, arredondado com 2 casas decimais
+FROM
+    Projetos p
+JOIN
+    Tarefas t ON p.id = t.id_projeto  -- Junta projeto com tarefa
+WHERE
+    p.data_inicio IS NOT NULL  -- Ignora projetos sem data de início
+    AND t.data_prevista_entrega IS NOT NULL  -- Ignora tarefas sem data de entrega prevista
+GROUP BY
+    p.status  -- Agrupa por status do projeto
+ORDER BY
+    "Status do Projeto";  -- Ordena por status
+
+🔹 4. Para cada projeto que esteja atualmente com o status 'Em Andamento', liste o nome do projeto. Dentro de cada um desses projetos,
+-- mostre cada cargo (da tabela Responsaveis) dos responsáveis que possuem tarefas atribuídas nesse projeto específico, 
+-- e o número de tarefas que responsáveis com aquele cargo têm nesse projeto. Ordene os resultados pelo nome do projeto e, 
+-- em seguida, pelo nome do cargo. Só inclua cargos que efetivamente tenham tarefas no respectivo projeto. Quantidade de tarefas por cargo em projetos em andamento
+
+SELECT
+    p.nome AS "Nome do Projeto",  -- Nome do projeto
+    r.cargo AS "Cargo do Responsável",  -- Cargo das pessoas que têm tarefas no projeto
+    COUNT(t.id) AS "Número de Tarefas"  -- Quantidade de tarefas atribuídas a esse cargo no projeto
+FROM
+    Projetos p
+JOIN
+    Tarefas t ON p.id = t.id_projeto  -- Junta projetos com tarefas
+JOIN
+    Responsaveis r ON t.id_responsavel_tarefa = r.id  -- Junta tarefas com os responsáveis
+WHERE
+    p.status = 'Em Andamento'  -- Filtra só projetos em andamento
+GROUP BY
+    p.nome,
+    r.cargo  -- Agrupa por projeto e cargo
+ORDER BY
+    p.nome,
+    r.cargo;  -- Ordena por nome do projeto e cargo
+
+🔹 5. Top 5 projetos com mais tarefas em atraso
+
+SELECT
+    p.nome AS "Nome do Projeto",  -- Nome do projeto
+    COUNT(t.id) AS "Tarefas em Atraso"  -- Conta quantas tarefas estão atrasadas
+FROM
+    Tarefas t
+JOIN
+    Projetos p ON t.id_projeto = p.id  -- Junta tarefas com projetos
+WHERE
+    t.data_prevista_entrega < '2025-06-17'  -- Data de entrega é anterior a hoje (ou data de referência)
+    AND t.status <> 'Concluída'  -- A tarefa ainda não foi concluída
+GROUP BY
+    p.nome
+ORDER BY
+    "Tarefas em Atraso" DESC  -- Ordena do que tem mais tarefas atrasadas
+LIMIT 5;  -- Mostra só os 5 primeiros
+
+🔹 6. Tarefas urgentes ou altas que ainda não foram concluídas
+
+SELECT
+    p.nome AS "Projeto",  -- Nome do projeto
+    t.titulo AS "Tarefa",  -- Título da tarefa
+    t.prioridade AS "Prioridade",  -- Prioridade (Alta/Urgente)
+    t.status AS "Status",  -- Status atual
+    t.data_prevista_entrega AS "Data de Entrega"  -- Data esperada de entrega
+FROM
+    Tarefas t
+JOIN
+    Projetos p ON t.id_projeto = p.id  -- Junta tarefas com seus projetos
+WHERE
+    t.prioridade IN ('Urgente', 'Alta')  -- Seleciona só as tarefas de alta ou urgente prioridade
+    AND t.status <> 'Concluída'  -- Que ainda não foram concluídas
+ORDER BY
+    t.data_prevista_entrega;  -- Ordena por data de entrega
+
+🔹 7. Listar projetos com uma ou mais tarefas com status 'Pendente'
+
+SELECT DISTINCT
+    p.nome AS "Nome do Projeto",  -- Nome do projeto
+    p.status AS "Status do Projeto"  -- Status do projeto
+FROM
+    Projetos p
+JOIN
+    Tarefas t ON p.id = t.id_projeto  -- Junta com tarefas
+WHERE
+    t.status = 'Pendente'  -- Seleciona apenas tarefas com status 'Pendente'
+ORDER BY
+    p.nome;  -- Ordena por nome do projeto
